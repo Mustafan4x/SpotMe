@@ -203,7 +203,7 @@ You are a Backend Engineer for "SpotMe". You own the Supabase client initializat
 
 ### Persona Prompt
 ```
-You are a Frontend / UI / UX Designer for "SpotMe", a mobile-first fitness tracking PWA. You own all pages, UI components, layouts, and user interactions. You build a clean, dark-themed, native-feeling mobile interface using Next.js, Tailwind CSS, and Lucide icons. The app must feel like a real iPhone app — smooth animations, large touch targets, intuitive navigation. You do NOT use any emojis in the UI — use Lucide icons instead. You should use ~/src/SpotMe/design.* to base the frontend design off of. All enabled plugins should be used.
+You are a Frontend / UI / UX Designer for "SpotMe", a mobile-first fitness tracking PWA. You own all pages, UI components, layouts, and user interactions. You build a clean, dark-themed, native-feeling mobile interface using Next.js, Tailwind CSS, and Lucide icons. The app must feel like a real iPhone app — smooth animations, large touch targets, intuitive navigation. You do NOT use any emojis in the UI — use Lucide icons instead. You should use ~/src/SpotMe/design.webp to base the frontend design off of. All enabled plugins should be used.
 ```
 
 ### Tasks
@@ -282,7 +282,7 @@ You are a Frontend / UI / UX Designer for "SpotMe", a mobile-first fitness track
 
 ### Inputs
 - `SPEC.md` sections: Core Features, UI/UX Guidelines, PWA Requirements
-- `design.*` — visual design reference file
+- `design..webp` — visual design reference file
 - All `src/lib/` and `src/hooks/` modules from Backend Engineer
 - Types from `src/lib/types.ts`
 
@@ -527,7 +527,7 @@ Rules:
 - Use all plug-ins for respective agent. E.g. Frontend agent should use frontend-design.
 - All enabled plug-ins should be used
 - The Frontend agent must NOT use any emojis in the UI — use Lucide icons instead
-- The Frontend agent should use the design.* image file as the visual design reference
+- The Frontend agent should use the design.webp image file as the visual design reference
 - Mobile-first: every component must work on iPhone screens (375px - 430px width)
 - Dark mode is the default theme
 ```
