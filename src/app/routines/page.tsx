@@ -14,7 +14,6 @@ import {
   Dumbbell,
   ChevronRight,
   Calendar,
-  Layers,
 } from "lucide-react";
 import { useRoutines } from "@/hooks/useRoutines";
 
@@ -35,16 +34,15 @@ export default function RoutinesPage() {
     routines,
     loading,
     createRoutine,
-    getRoutineWithExercises,
   } = useRoutines();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newRoutineName, setNewRoutineName] = useState("");
 
-  const handleCreateRoutine = () => {
+  const handleCreateRoutine = async () => {
     const name = newRoutineName.trim();
     if (!name) return;
-    createRoutine(name);
+    await createRoutine(name);
     setNewRoutineName("");
     setShowCreateModal(false);
   };
@@ -102,11 +100,7 @@ export default function RoutinesPage() {
         {/* Routines List */}
         {!loading && routines.length > 0 && (
           <div className="space-y-3">
-            {routines.map((routine) => {
-              const detail = getRoutineWithExercises(routine.id);
-              const exerciseCount = detail?.routine_exercises.length ?? 0;
-
-              return (
+            {routines.map((routine) => (
                 <Link key={routine.id} href={`/routines/${routine.id}`}>
                   <Card className="transition-colors hover:bg-accent/20 active:bg-accent/40">
                     <CardContent className="py-4">
@@ -120,13 +114,6 @@ export default function RoutinesPage() {
                           </p>
                           <div className="mt-1 flex items-center gap-3">
                             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Layers className="h-3 w-3" />
-                              {exerciseCount}{" "}
-                              {exerciseCount === 1
-                                ? "exercise"
-                                : "exercises"}
-                            </span>
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
                               <Calendar className="h-3 w-3" />
                               {formatDate(routine.updated_at)}
                             </span>
@@ -137,8 +124,7 @@ export default function RoutinesPage() {
                     </CardContent>
                   </Card>
                 </Link>
-              );
-            })}
+            ))}
           </div>
         )}
       </div>

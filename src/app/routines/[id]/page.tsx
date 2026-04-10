@@ -299,73 +299,65 @@ export default function RoutineDetailPage({ params }: RoutineDetailPageProps) {
   const [editedName, setEditedName] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  const refreshRoutine = async () => {
+    const r = await getRoutineWithExercises(id);
+    setRoutine(r);
+  };
+
   // Refresh routine data when hook data changes
   useEffect(() => {
     if (!loading) {
-      const r = getRoutineWithExercises(id);
-      setRoutine(r);
+      refreshRoutine();
     }
-  }, [id, loading, getRoutineWithExercises]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, loading]);
 
-  const handleAddExercise = (exercise: Exercise) => {
-    addExerciseToRoutine(id, exercise.id);
-    // Refresh
-    setTimeout(() => {
-      setRoutine(getRoutineWithExercises(id));
-    }, 50);
+  const handleAddExercise = async (exercise: Exercise) => {
+    await addExerciseToRoutine(id, exercise.id);
+    await refreshRoutine();
   };
 
-  const handleCreateAndAdd = (name: string, muscleGroup?: string) => {
-    const exercise = createExercise(name, muscleGroup);
-    addExerciseToRoutine(id, exercise.id);
+  const handleCreateAndAdd = async (name: string, muscleGroup?: string) => {
+    const exercise = await createExercise(name, muscleGroup);
+    await addExerciseToRoutine(id, exercise.id);
     setShowExerciseSearch(false);
-    setTimeout(() => {
-      setRoutine(getRoutineWithExercises(id));
-    }, 50);
+    await refreshRoutine();
   };
 
-  const handleRemoveExercise = (routineExerciseId: string) => {
-    removeExerciseFromRoutine(id, routineExerciseId);
-    setTimeout(() => {
-      setRoutine(getRoutineWithExercises(id));
-    }, 50);
+  const handleRemoveExercise = async (routineExerciseId: string) => {
+    await removeExerciseFromRoutine(id, routineExerciseId);
+    await refreshRoutine();
   };
 
-  const handleReorder = (
+  const handleReorder = async (
     routineExerciseId: string,
     direction: "up" | "down"
   ) => {
-    reorderExercise(id, routineExerciseId, direction);
-    setTimeout(() => {
-      setRoutine(getRoutineWithExercises(id));
-    }, 50);
+    await reorderExercise(id, routineExerciseId, direction);
+    await refreshRoutine();
   };
 
-  const handleUpdateSets = (routineExerciseId: string, sets: number) => {
-    updateDefaultSets(routineExerciseId, sets);
-    setTimeout(() => {
-      setRoutine(getRoutineWithExercises(id));
-    }, 50);
+  const handleUpdateSets = async (routineExerciseId: string, sets: number) => {
+    await updateDefaultSets(routineExerciseId, sets);
+    await refreshRoutine();
   };
 
-  const handleSaveName = () => {
+  const handleSaveName = async () => {
     const name = editedName.trim();
     if (!name) return;
-    updateRoutineName(id, name);
+    await updateRoutineName(id, name);
     setShowEditName(false);
-    setTimeout(() => {
-      setRoutine(getRoutineWithExercises(id));
-    }, 50);
+    await refreshRoutine();
   };
 
-  const handleDuplicate = () => {
-    duplicateRoutine(id);
+  const handleDuplicate = async () => {
+    await duplicateRoutine(id);
     setShowMenu(false);
     router.push("/routines");
   };
 
-  const handleDelete = () => {
-    deleteRoutine(id);
+  const handleDelete = async () => {
+    await deleteRoutine(id);
     setShowDeleteConfirm(false);
     setShowMenu(false);
     router.push("/routines");

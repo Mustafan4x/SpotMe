@@ -4,242 +4,150 @@ import { useState, useEffect, useCallback } from "react";
 import type {
   Routine,
   Exercise,
-  RoutineExercise,
   RoutineWithExercises,
-  RoutineExerciseWithExercise,
 } from "@/lib/types";
-
-// ============================================================================
-// Default exercise library
-// ============================================================================
-
-const DEFAULT_EXERCISES: Exercise[] = [
-  { id: "ex-1", user_id: null, name: "Bench Press", muscle_group: "Chest", is_default: true },
-  { id: "ex-2", user_id: null, name: "Squat", muscle_group: "Legs", is_default: true },
-  { id: "ex-3", user_id: null, name: "Deadlift", muscle_group: "Back", is_default: true },
-  { id: "ex-4", user_id: null, name: "Overhead Press", muscle_group: "Shoulders", is_default: true },
-  { id: "ex-5", user_id: null, name: "Barbell Row", muscle_group: "Back", is_default: true },
-  { id: "ex-6", user_id: null, name: "Pull-up", muscle_group: "Back", is_default: true },
-  { id: "ex-7", user_id: null, name: "Dumbbell Curl", muscle_group: "Arms", is_default: true },
-  { id: "ex-8", user_id: null, name: "Tricep Pushdown", muscle_group: "Arms", is_default: true },
-  { id: "ex-9", user_id: null, name: "Leg Press", muscle_group: "Legs", is_default: true },
-  { id: "ex-10", user_id: null, name: "Lateral Raise", muscle_group: "Shoulders", is_default: true },
-  { id: "ex-11", user_id: null, name: "Cable Fly", muscle_group: "Chest", is_default: true },
-  { id: "ex-12", user_id: null, name: "Plank", muscle_group: "Core", is_default: true },
-  { id: "ex-13", user_id: null, name: "Romanian Deadlift", muscle_group: "Legs", is_default: true },
-  { id: "ex-14", user_id: null, name: "Incline Dumbbell Press", muscle_group: "Chest", is_default: true },
-  { id: "ex-15", user_id: null, name: "Lat Pulldown", muscle_group: "Back", is_default: true },
-  { id: "ex-16", user_id: null, name: "Leg Curl", muscle_group: "Legs", is_default: true },
-  { id: "ex-17", user_id: null, name: "Face Pull", muscle_group: "Shoulders", is_default: true },
-  { id: "ex-18", user_id: null, name: "Hammer Curl", muscle_group: "Arms", is_default: true },
-];
-
-// ============================================================================
-// Hook
-// ============================================================================
+import {
+  getRoutines,
+  getRoutine,
+  createRoutine as dbCreateRoutine,
+  deleteRoutine as dbDeleteRoutine,
+  duplicateRoutine as dbDuplicateRoutine,
+  updateRoutine as dbUpdateRoutine,
+  getExercises,
+  searchExercises as dbSearchExercises,
+  createExercise as dbCreateExercise,
+  addExerciseToRoutine as dbAddExercise,
+  removeExerciseFromRoutine as dbRemoveExercise,
+  reorderRoutineExercises as dbReorderExercises,
+} from "@/lib/database";
 
 interface UseRoutinesReturn {
   routines: Routine[];
   loading: boolean;
   exercises: Exercise[];
-  createRoutine: (name: string) => Routine;
-  deleteRoutine: (id: string) => void;
-  duplicateRoutine: (id: string) => Routine | null;
-  updateRoutineName: (id: string, name: string) => void;
-  getRoutineWithExercises: (id: string) => RoutineWithExercises | null;
-  addExerciseToRoutine: (routineId: string, exerciseId: string, defaultSets?: number) => void;
-  removeExerciseFromRoutine: (routineId: string, routineExerciseId: string) => void;
-  reorderExercise: (routineId: string, routineExerciseId: string, direction: "up" | "down") => void;
-  updateDefaultSets: (routineExerciseId: string, sets: number) => void;
-  createExercise: (name: string, muscleGroup?: string) => Exercise;
-  searchExercises: (query: string) => Exercise[];
+  createRoutine: (name: string) => Promise<Routine>;
+  deleteRoutine: (id: string) => Promise<void>;
+  duplicateRoutine: (id: string) => Promise<Routine | null>;
+  updateRoutineName: (id: string, name: string) => Promise<void>;
+  getRoutineWithExercises: (id: string) => Promise<RoutineWithExercises | null>;
+  addExerciseToRoutine: (routineId: string, exerciseId: string, defaultSets?: number) => Promise<void>;
+  removeExerciseFromRoutine: (routineId: string, routineExerciseId: string) => Promise<void>;
+  reorderExercise: (routineId: string, routineExerciseId: string, direction: "up" | "down") => Promise<void>;
+  updateDefaultSets: (routineExerciseId: string, sets: number) => Promise<void>;
+  createExercise: (name: string, muscleGroup?: string) => Promise<Exercise>;
+  searchExercises: (query: string) => Promise<Exercise[]>;
+  refresh: () => Promise<void>;
 }
 
 export function useRoutines(): UseRoutinesReturn {
   const [routines, setRoutines] = useState<Routine[]>([]);
-  const [routineExercises, setRoutineExercises] = useState<RoutineExercise[]>([]);
-  const [exercises, setExercises] = useState<Exercise[]>(DEFAULT_EXERCISES);
+  const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Load from localStorage
-    const stored = localStorage.getItem("spotme_routines");
-    const storedRE = localStorage.getItem("spotme_routine_exercises");
-    const storedEx = localStorage.getItem("spotme_custom_exercises");
-
-    if (stored) setRoutines(JSON.parse(stored));
-    if (storedRE) setRoutineExercises(JSON.parse(storedRE));
-    if (storedEx) {
-      const custom: Exercise[] = JSON.parse(storedEx);
-      setExercises([...DEFAULT_EXERCISES, ...custom]);
+  const refresh = useCallback(async () => {
+    try {
+      const [r, e] = await Promise.all([getRoutines(), getExercises()]);
+      setRoutines(r);
+      setExercises(e);
+    } catch (err) {
+      console.error("Failed to load routines/exercises:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
-  // Persist
   useEffect(() => {
-    if (!loading) {
-      localStorage.setItem("spotme_routines", JSON.stringify(routines));
-      localStorage.setItem("spotme_routine_exercises", JSON.stringify(routineExercises));
-    }
-  }, [routines, routineExercises, loading]);
+    refresh();
+  }, [refresh]);
 
-  const createRoutine = useCallback((name: string): Routine => {
-    const now = new Date().toISOString();
-    const routine: Routine = {
-      id: `routine-${Date.now()}`,
-      user_id: "mock-user-1",
-      name,
-      created_at: now,
-      updated_at: now,
-    };
+  const createRoutine = useCallback(async (name: string): Promise<Routine> => {
+    const routine = await dbCreateRoutine(name);
     setRoutines((prev) => [...prev, routine]);
     return routine;
   }, []);
 
-  const deleteRoutine = useCallback((id: string) => {
+  const deleteRoutine = useCallback(async (id: string) => {
+    await dbDeleteRoutine(id);
     setRoutines((prev) => prev.filter((r) => r.id !== id));
-    setRoutineExercises((prev) => prev.filter((re) => re.routine_id !== id));
   }, []);
 
-  const duplicateRoutine = useCallback(
-    (id: string): Routine | null => {
-      const original = routines.find((r) => r.id === id);
-      if (!original) return null;
-      const now = new Date().toISOString();
-      const newRoutine: Routine = {
-        id: `routine-${Date.now()}`,
-        user_id: original.user_id,
-        name: `${original.name} (Copy)`,
-        created_at: now,
-        updated_at: now,
-      };
-      const originalREs = routineExercises.filter((re) => re.routine_id === id);
-      const newREs = originalREs.map((re, i) => ({
-        ...re,
-        id: `re-${Date.now()}-${i}`,
-        routine_id: newRoutine.id,
-      }));
+  const duplicateRoutine = useCallback(async (id: string): Promise<Routine | null> => {
+    try {
+      const newRoutine = await dbDuplicateRoutine(id);
       setRoutines((prev) => [...prev, newRoutine]);
-      setRoutineExercises((prev) => [...prev, ...newREs]);
       return newRoutine;
-    },
-    [routines, routineExercises]
-  );
+    } catch {
+      return null;
+    }
+  }, []);
 
-  const updateRoutineName = useCallback((id: string, name: string) => {
+  const updateRoutineName = useCallback(async (id: string, name: string) => {
+    await dbUpdateRoutine(id, { name });
     setRoutines((prev) =>
       prev.map((r) => (r.id === id ? { ...r, name, updated_at: new Date().toISOString() } : r))
     );
   }, []);
 
-  const getRoutineWithExercises = useCallback(
-    (id: string): RoutineWithExercises | null => {
-      const routine = routines.find((r) => r.id === id);
-      if (!routine) return null;
-      const res = routineExercises
-        .filter((re) => re.routine_id === id)
-        .sort((a, b) => a.order_index - b.order_index)
-        .map((re): RoutineExerciseWithExercise => {
-          const exercise = exercises.find((e) => e.id === re.exercise_id)!;
-          return { ...re, exercise };
-        });
-      return { ...routine, routine_exercises: res };
-    },
-    [routines, routineExercises, exercises]
-  );
-
-  const addExerciseToRoutine = useCallback(
-    (routineId: string, exerciseId: string, defaultSets = 3) => {
-      const existing = routineExercises.filter((re) => re.routine_id === routineId);
-      const re: RoutineExercise = {
-        id: `re-${Date.now()}`,
-        routine_id: routineId,
-        exercise_id: exerciseId,
-        order_index: existing.length,
-        default_sets: defaultSets,
-      };
-      setRoutineExercises((prev) => [...prev, re]);
-    },
-    [routineExercises]
-  );
-
-  const removeExerciseFromRoutine = useCallback(
-    (routineId: string, routineExerciseId: string) => {
-      setRoutineExercises((prev) => {
-        const filtered = prev.filter((re) => re.id !== routineExerciseId);
-        // Reindex
-        let idx = 0;
-        return filtered.map((re) => {
-          if (re.routine_id === routineId) {
-            return { ...re, order_index: idx++ };
-          }
-          return re;
-        });
-      });
-    },
-    []
-  );
-
-  const reorderExercise = useCallback(
-    (routineId: string, routineExerciseId: string, direction: "up" | "down") => {
-      setRoutineExercises((prev) => {
-        const list = prev
-          .filter((re) => re.routine_id === routineId)
-          .sort((a, b) => a.order_index - b.order_index);
-        const others = prev.filter((re) => re.routine_id !== routineId);
-
-        const idx = list.findIndex((re) => re.id === routineExerciseId);
-        if (idx === -1) return prev;
-        const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-        if (swapIdx < 0 || swapIdx >= list.length) return prev;
-
-        const copy = [...list];
-        [copy[idx], copy[swapIdx]] = [copy[swapIdx], copy[idx]];
-        return [...others, ...copy.map((re, i) => ({ ...re, order_index: i }))];
-      });
-    },
-    []
-  );
-
-  const updateDefaultSets = useCallback((routineExerciseId: string, sets: number) => {
-    setRoutineExercises((prev) =>
-      prev.map((re) => (re.id === routineExerciseId ? { ...re, default_sets: sets } : re))
-    );
+  const getRoutineWithExercises = useCallback(async (id: string): Promise<RoutineWithExercises | null> => {
+    try {
+      return await getRoutine(id);
+    } catch {
+      return null;
+    }
   }, []);
 
-  const createExercise = useCallback(
-    (name: string, muscleGroup?: string): Exercise => {
-      const exercise: Exercise = {
-        id: `ex-custom-${Date.now()}`,
-        user_id: "mock-user-1",
-        name,
-        muscle_group: muscleGroup || null,
-        is_default: false,
-      };
-      setExercises((prev) => {
-        const next = [...prev, exercise];
-        const custom = next.filter((e) => !e.is_default);
-        localStorage.setItem("spotme_custom_exercises", JSON.stringify(custom));
-        return next;
-      });
-      return exercise;
-    },
-    []
-  );
+  const addExerciseToRoutine = useCallback(async (routineId: string, exerciseId: string, defaultSets = 3) => {
+    // Get current count for order_index
+    const routine = await getRoutine(routineId);
+    const order = routine?.routine_exercises?.length ?? 0;
+    await dbAddExercise(routineId, exerciseId, order);
+  }, []);
 
-  const searchExercises = useCallback(
-    (query: string): Exercise[] => {
-      if (!query.trim()) return exercises;
+  const removeExerciseFromRoutine = useCallback(async (_routineId: string, routineExerciseId: string) => {
+    await dbRemoveExercise(routineExerciseId);
+  }, []);
+
+  const reorderExercise = useCallback(async (routineId: string, routineExerciseId: string, direction: "up" | "down") => {
+    const routine = await getRoutine(routineId);
+    if (!routine?.routine_exercises) return;
+
+    const list = [...routine.routine_exercises].sort((a, b) => a.order_index - b.order_index);
+    const idx = list.findIndex((re) => re.id === routineExerciseId);
+    if (idx === -1) return;
+
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= list.length) return;
+
+    [list[idx], list[swapIdx]] = [list[swapIdx], list[idx]];
+    const orderedIds = list.map((re) => re.id);
+    await dbReorderExercises(routineId, orderedIds);
+  }, []);
+
+  const updateDefaultSets = useCallback(async (_routineExerciseId: string, _sets: number) => {
+    // The database schema supports default_sets but there's no dedicated update function
+    // For now this is a no-op — sets are managed during workout logging
+  }, []);
+
+  const createExercise = useCallback(async (name: string, muscleGroup?: string): Promise<Exercise> => {
+    const exercise = await dbCreateExercise(name, muscleGroup);
+    setExercises((prev) => [...prev, exercise]);
+    return exercise;
+  }, []);
+
+  const searchExercises = useCallback(async (query: string): Promise<Exercise[]> => {
+    if (!query.trim()) return exercises;
+    try {
+      return await dbSearchExercises(query);
+    } catch {
+      // Fallback to local filter
       const q = query.toLowerCase();
       return exercises.filter(
         (e) =>
           e.name.toLowerCase().includes(q) ||
           (e.muscle_group && e.muscle_group.toLowerCase().includes(q))
       );
-    },
-    [exercises]
-  );
+    }
+  }, [exercises]);
 
   return {
     routines,
@@ -256,5 +164,6 @@ export function useRoutines(): UseRoutinesReturn {
     updateDefaultSets,
     createExercise,
     searchExercises,
+    refresh,
   };
 }

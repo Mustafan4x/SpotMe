@@ -372,10 +372,38 @@ export default function LogWorkoutPage() {
   const [justFinished, setJustFinished] = useState(false);
   const [finishedSetCount, setFinishedSetCount] = useState(0);
   const [activeRoutine, setActiveRoutine] = useState<RoutineWithExercises | null>(null);
+  const [routineList, setRoutineList] = useState<{ id: string; name: string; exerciseCount: number }[]>([]);
+
+  // Build routine list asynchronously
+  useEffect(() => {
+    if (routinesLoading || routines.length === 0) {
+      setRoutineList([]);
+      return;
+    }
+
+    let cancelled = false;
+    async function loadRoutineList() {
+      const list = await Promise.all(
+        routines.map(async (r) => {
+          const detail = await getRoutineWithExercises(r.id);
+          return {
+            id: r.id,
+            name: r.name,
+            exerciseCount: detail?.routine_exercises.length ?? 0,
+          };
+        })
+      );
+      if (!cancelled) {
+        setRoutineList(list);
+      }
+    }
+    loadRoutineList();
+    return () => { cancelled = true; };
+  }, [routines, routinesLoading, getRoutineWithExercises]);
 
   const handleSelectRoutine = async (routineId: string) => {
-    // Get full routine with exercises from local hook for display
-    const fullRoutine = getRoutineWithExercises(routineId);
+    // Get full routine with exercises from hook for display
+    const fullRoutine = await getRoutineWithExercises(routineId);
     setActiveRoutine(fullRoutine);
 
     try {
@@ -421,16 +449,6 @@ export default function LogWorkoutPage() {
     setJustFinished(false);
     window.location.href = "/";
   };
-
-  // Prepare routine list for selector
-  const routineList = routines.map((r) => {
-    const detail = getRoutineWithExercises(r.id);
-    return {
-      id: r.id,
-      name: r.name,
-      exerciseCount: detail?.routine_exercises.length ?? 0,
-    };
-  });
 
   // Determine the routine to display during an active workout
   // Prefer the routine from the workout hook (workoutExercises), but fallback to local
