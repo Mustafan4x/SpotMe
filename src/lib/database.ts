@@ -221,6 +221,18 @@ export async function removeExerciseFromRoutine(id: string): Promise<void> {
   if (result.error) throw new Error(result.error.message);
 }
 
+/** Update the default_sets for a routine exercise. */
+export async function updateRoutineExerciseDefaultSets(
+  routineExerciseId: string,
+  defaultSets: number
+): Promise<void> {
+  const result = await supabase
+    .from('routine_exercises')
+    .update({ default_sets: defaultSets })
+    .eq('id', routineExerciseId);
+  if (result.error) throw new Error(result.error.message);
+}
+
 /**
  * Reorder exercises within a routine.
  * Accepts an array of routine_exercise IDs in the desired order.

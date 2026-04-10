@@ -22,7 +22,7 @@ export function Card({ children, className = "", ...props }: CardProps) {
       className={[
         "rounded-2xl border border-border bg-card text-card-foreground",
         "shadow-[0_2px_8px_rgba(0,0,0,0.3)]",
-        "transition-transform duration-150 ease-out active:scale-[0.98]",
+        "transition-colors duration-150 ease-out",
         className,
       ].join(" ")}
       {...props}

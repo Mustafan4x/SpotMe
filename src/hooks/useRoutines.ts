@@ -19,6 +19,7 @@ import {
   addExerciseToRoutine as dbAddExercise,
   removeExerciseFromRoutine as dbRemoveExercise,
   reorderRoutineExercises as dbReorderExercises,
+  updateRoutineExerciseDefaultSets as dbUpdateDefaultSets,
 } from "@/lib/database";
 
 interface UseRoutinesReturn {
@@ -123,9 +124,8 @@ export function useRoutines(): UseRoutinesReturn {
     await dbReorderExercises(routineId, orderedIds);
   }, []);
 
-  const updateDefaultSets = useCallback(async (_routineExerciseId: string, _sets: number) => {
-    // The database schema supports default_sets but there's no dedicated update function
-    // For now this is a no-op — sets are managed during workout logging
+  const updateDefaultSets = useCallback(async (routineExerciseId: string, sets: number) => {
+    await dbUpdateDefaultSets(routineExerciseId, sets);
   }, []);
 
   const createExercise = useCallback(async (name: string, muscleGroup?: string): Promise<Exercise> => {
