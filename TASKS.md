@@ -32,6 +32,9 @@ Backend Engineer (depends on: Config & Database Lead)
     |
     v
 QA / Testing Engineer (depends on: all implementation roles)
+    |
+    v
+Security Engineer (depends on: Config & Database Lead, Backend Engineer, PWA & Offline Engineer)
 ```
 
 **Parallelizable from the start:** Project Manager, Config & Database Lead, Backend Engineer (types + Supabase client), Frontend Designer (wireframes + static layouts)
@@ -479,6 +482,97 @@ You are a QA Engineer for "SpotMe". You write unit tests, integration tests, and
 
 ---
 
+## Role 8: Security Engineer
+
+### Persona Prompt
+```
+You are a Security Engineer for "SpotMe", a mobile-first fitness tracking PWA built with Next.js, Supabase, and Tailwind CSS. You own application security end-to-end — authentication hardening, data protection, input validation, API security, dependency auditing, and threat modeling. Your goal is to ensure that no user's data can be accessed, modified, or destroyed by unauthorized parties, and that the application is resilient against common web attacks (OWASP Top 10). You think like an attacker to defend like an engineer.
+```
+
+### Tasks
+
+- [ ] **SEC-1: Audit and harden Row Level Security policies**
+  - Review all RLS policies in `supabase/migrations/001_initial_schema.sql` for completeness and correctness
+  - Verify that `workout_sets` and `routine_exercises` ownership checks join through parent tables and cannot be bypassed
+  - Ensure no table can be read, written, or deleted without valid `auth.uid()` matching the owning user
+  - Test for privilege escalation: verify a user cannot modify another user's `user_id` field on insert or update
+  - Confirm default exercises (`is_default = true`, `user_id = NULL`) are read-only and cannot be modified or deleted by any user
+  - Document any RLS gaps found and provide corrected policies
+
+- [ ] **SEC-2: Harden authentication and session management**
+  - Verify Supabase Auth configuration: enforce minimum password length (8+ characters), disallow common/weak passwords where Supabase supports it
+  - Confirm JWT tokens are stored securely (httpOnly cookies preferred over localStorage)
+  - Ensure auth tokens have appropriate expiry and refresh logic
+  - Verify sign-out fully invalidates the session on both client and server
+  - Confirm that unauthenticated users cannot access any protected routes or API endpoints
+  - Add rate limiting considerations for login attempts (Supabase built-in or custom)
+  - Ensure no sensitive auth data (tokens, passwords) is logged or exposed in client-side errors
+
+- [ ] **SEC-3: Input validation and injection prevention**
+  - Audit all user-facing input fields (exercise names, routine names, reps, weight, RIR) for proper validation
+  - Ensure reps, weight, and RIR fields reject non-numeric, negative, or out-of-range values before reaching the database
+  - Sanitize text inputs (exercise name, routine name) to prevent XSS — no raw HTML rendering of user input
+  - Verify that Supabase parameterized queries are used everywhere (no string-concatenated SQL)
+  - Confirm search/filter inputs (exercise search) cannot be used for injection attacks
+  - Validate all data types and shapes on the client before submission
+
+- [ ] **SEC-4: API and network security**
+  - Verify that the Supabase anon key is the only key exposed to the client (service role key never in frontend code)
+  - Audit `NEXT_PUBLIC_` environment variables to ensure no secrets are accidentally exposed
+  - Confirm all Supabase API calls go over HTTPS
+  - Ensure CORS is properly configured (Supabase default + Vercel)
+  - Review Next.js API routes (if any) for proper authentication checks
+  - Verify Content Security Policy (CSP) headers are set in `next.config.js` or `vercel.json` to prevent XSS and data exfiltration
+  - Add security headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`
+
+- [ ] **SEC-5: Offline storage and data-at-rest security**
+  - Review IndexedDB usage in `src/lib/offline.ts` for sensitive data exposure
+  - Ensure offline-cached workout data cannot be accessed by other origins or apps on the device
+  - Verify that synced data is cleared from IndexedDB after successful push to Supabase
+  - Confirm the service worker (`public/sw.js`) does not cache sensitive data (auth tokens, user PII) in the Cache API
+  - Ensure `.env.local` is gitignored and no secrets are committed to the repository
+
+- [ ] **SEC-6: Dependency auditing and supply chain security**
+  - Run `npm audit` and resolve all critical and high severity vulnerabilities
+  - Review `package.json` dependencies for known vulnerable versions
+  - Ensure `package-lock.json` is committed and integrity hashes are present
+  - Set up a process for periodic dependency updates (document in README or CI config)
+  - Verify no unnecessary dependencies are installed that increase attack surface
+
+- [ ] **SEC-7: Threat model and security documentation**
+  - Create `SECURITY.md` documenting:
+    - Application threat model: identified threats, attack vectors, and mitigations
+    - Data flow diagram showing where user data is stored, transmitted, and processed
+    - Authentication and authorization architecture
+    - Incident response steps if a security issue is discovered
+    - Responsible disclosure contact information
+  - Document all security-related configuration decisions and their rationale
+
+### Inputs
+- `SPEC.md` (full spec)
+- `supabase/migrations/001_initial_schema.sql` (RLS policies, schema)
+- `src/lib/supabase.ts` (client configuration)
+- `src/lib/database.ts` (query functions)
+- `src/lib/offline.ts` (IndexedDB layer)
+- `public/sw.js` (service worker)
+- `next.config.js`, `vercel.json` (deployment config)
+- `package.json` and `package-lock.json` (dependencies)
+
+### Outputs
+- Corrected RLS policies (if gaps found)
+- Security headers configuration in `next.config.js` or `vercel.json`
+- Input validation utilities or middleware (if needed)
+- `SECURITY.md` — threat model and security documentation
+- `npm audit` report and remediation
+
+### Dependencies
+- **DB-1, DB-2** (schema and RLS policies must exist to audit)
+- **API-1, API-2** (Supabase client and queries must exist to review)
+- **PWA-1, PWA-2** (service worker and offline layer must exist to review)
+- Can start SEC-7 (threat modeling) and SEC-6 (dependency audit) immediately
+
+---
+
 ## Execution Order (Recommended)
 
 ### Wave 1 — Immediate (no dependencies)
@@ -489,6 +583,7 @@ You are a QA Engineer for "SpotMe". You write unit tests, integration tests, and
 | Agent 3 | Backend Engineer | API-1, API-3 (can stub types) |
 | Agent 4 | Frontend / UI / UX Designer | FE-1 (UI primitives), FE-7 (login — static layout) |
 | Agent 6 | PWA & Offline Engineer | PWA-1, PWA-4 (service worker + Apple assets) |
+| Agent 8 | Security Engineer | SEC-6 (dependency audit), SEC-7 (threat model — start drafting) |
 
 ### Wave 2 — After Wave 1
 | Agent | Role | Tasks |
@@ -497,12 +592,14 @@ You are a QA Engineer for "SpotMe". You write unit tests, integration tests, and
 | Agent 4 | Frontend / UI / UX Designer | FE-2, FE-3, FE-4, FE-5, FE-6 (all pages) |
 | Agent 5 | Charts & Analytics Engineer | VIZ-1, VIZ-2, VIZ-3, VIZ-4, VIZ-5 |
 | Agent 6 | PWA & Offline Engineer | PWA-2, PWA-3, PWA-5 (offline data layer + sync) |
+| Agent 8 | Security Engineer | SEC-1 (RLS audit), SEC-2 (auth hardening), SEC-3 (input validation) |
 
 ### Wave 3 — After Wave 2
 | Agent | Role | Tasks |
 |-------|------|-------|
 | Agent 7 | QA / Testing Engineer | QA-1 through QA-5 |
 | Agent 4 | Frontend / UI / UX Designer | FE-8 (final mobile polish) |
+| Agent 8 | Security Engineer | SEC-4 (API/network security), SEC-5 (offline storage security), SEC-7 (finalize documentation) |
 | Agent 1 | Project Manager | Final integration, build verification, deploy |
 
 ---
