@@ -34,11 +34,14 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 5000;
 
 export function useOffline(): UseOfflineReturn {
-  const [isOnline, setIsOnline] = useState<boolean>(
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  );
+  const [isOnline, setIsOnline] = useState<boolean>(true);
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
+
+  // Check actual online status after mount (navigator.onLine can be unreliable)
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+  }, []);
 
   const isSyncing = useRef(false);
   const retryCount = useRef(0);
