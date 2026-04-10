@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +19,7 @@ type WeightUnit = "lbs" | "kg";
 
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
+  const router = useRouter();
   const [isDark, setIsDark] = useState(true);
   const [weightUnit, setWeightUnit] = useState<WeightUnit>("lbs");
   const [mounted, setMounted] = useState(false);
@@ -65,6 +67,7 @@ export default function SettingsPage() {
   const handleSignOut = async () => {
     try {
       await signOut();
+      router.push("/login");
     } catch {
       // signOut may fail if Supabase is not configured
     }
