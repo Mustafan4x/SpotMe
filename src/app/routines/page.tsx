@@ -39,12 +39,20 @@ export default function RoutinesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newRoutineName, setNewRoutineName] = useState("");
 
+  const [error, setError] = useState<string | null>(null);
+
   const handleCreateRoutine = async () => {
     const name = newRoutineName.trim();
     if (!name) return;
-    await createRoutine(name);
-    setNewRoutineName("");
-    setShowCreateModal(false);
+    setError(null);
+    try {
+      await createRoutine(name);
+      setNewRoutineName("");
+      setShowCreateModal(false);
+    } catch (err: any) {
+      setError(err?.message || "Failed to create routine");
+      console.error("Create routine error:", err);
+    }
   };
 
   return (
@@ -149,6 +157,11 @@ export default function RoutinesPage() {
             }}
             autoFocus
           />
+          {error && (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-red-400">
+              {error}
+            </div>
+          )}
           <Button
             fullWidth
             onClick={handleCreateRoutine}
