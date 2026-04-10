@@ -1,7 +1,7 @@
 // SpotMe Service Worker
 // Production-grade service worker for offline-first PWA experience
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `spotme-static-${CACHE_VERSION}`;
 const API_CACHE = `spotme-api-${CACHE_VERSION}`;
 const ALL_CACHES = [STATIC_CACHE, API_CACHE];
@@ -104,6 +104,13 @@ self.addEventListener('fetch', (event) => {
   // Skip chrome-extension and non-http(s) requests
   const url = new URL(request.url);
   if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
+  // Skip external font/CDN requests — let the browser handle them directly
+  if (url.hostname.includes('fonts.googleapis.com') ||
+      url.hostname.includes('fonts.gstatic.com') ||
+      url.hostname.includes('cdn.')) {
     return;
   }
 
