@@ -38,115 +38,99 @@ function SwipeableRoutineCard({
   routine: Routine;
   onDelete: () => void;
 }) {
-  const startXRef = useRef(0);
-  const currentXRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const isDraggingRef = useRef(false);
-  const offsetRef = useRef(0);
-  const [snappedOffset, setSnappedOffset] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
+  const startXRef = useRef(0);
+  const startYRef = useRef(0);
+  const draggingRef = useRef(false);
+  const lockedRef = useRef<"x" | "y" | null>(null);
+  const [revealed, setRevealed] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     startXRef.current = e.touches[0].clientX;
-    currentXRef.current = offsetRef.current;
-    isDraggingRef.current = false;
+    startYRef.current = e.touches[0].clientY;
+    draggingRef.current = false;
+    lockedRef.current = null;
+    if (containerRef.current) {
+      containerRef.current.style.transition = "none";
+    }
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    const diff = e.touches[0].clientX - startXRef.current;
+    const dx = e.touches[0].clientX - startXRef.current;
+    const dy = e.touches[0].clientY - startYRef.current;
 
-    // Require a minimum horizontal movement of 10px before starting swipe
-    if (!isDraggingRef.current && Math.abs(diff) < 10) return;
-
-    if (!isDraggingRef.current) {
-      isDraggingRef.current = true;
-      setIsDragging(true);
+    // Lock direction after 8px of movement
+    if (!lockedRef.current && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      lockedRef.current = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
     }
 
-    // Only allow swiping left, clamp between -80 and 0
-    const newOffset = Math.min(0, Math.max(-80, currentXRef.current + diff));
-    offsetRef.current = newOffset;
+    // If scrolling vertically, don't interfere
+    if (lockedRef.current !== "x") return;
 
-    requestAnimationFrame(() => {
-      if (containerRef.current) {
-        containerRef.current.style.transform = `translateX(${newOffset}px)`;
-      }
-    });
-  }, []);
+    draggingRef.current = true;
+    e.preventDefault();
 
-  const handleTouchEnd = useCallback(() => {
-    const finalOffset = offsetRef.current < -40 ? -80 : 0;
-    offsetRef.current = finalOffset;
-    setSnappedOffset(finalOffset);
-    setIsDragging(false);
+    const base = revealed ? -72 : 0;
+    const offset = Math.min(0, Math.max(-72, base + dx));
 
     if (containerRef.current) {
-      containerRef.current.style.transition = "transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)";
-      containerRef.current.style.transform = `translateX(${finalOffset}px)`;
-      // Remove inline transition after it completes so drag stays smooth
-      const onEnd = () => {
-        if (containerRef.current) {
-          containerRef.current.style.transition = "";
-        }
-        containerRef.current?.removeEventListener("transitionend", onEnd);
-      };
-      containerRef.current.addEventListener("transitionend", onEnd);
+      containerRef.current.style.transform = `translateX(${offset}px)`;
+    }
+  }, [revealed]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!draggingRef.current) return;
+
+    const el = containerRef.current;
+    if (!el) return;
+
+    // Read current position from the transform
+    const match = el.style.transform.match(/translateX\((-?\d+\.?\d*)px\)/);
+    const current = match ? parseFloat(match[1]) : 0;
+
+    el.style.transition = "transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)";
+
+    if (current < -36) {
+      el.style.transform = "translateX(-72px)";
+      setRevealed(true);
+    } else {
+      el.style.transform = "translateX(0px)";
+      setRevealed(false);
     }
   }, []);
-
-  const handleDelete = () => {
-    setShowConfirm(true);
-  };
 
   const confirmDelete = () => {
     onDelete();
     setShowConfirm(false);
-    setSnappedOffset(0);
-    offsetRef.current = 0;
-    if (containerRef.current) {
-      containerRef.current.style.transform = "translateX(0px)";
-    }
-  };
-
-  const resetSwipe = () => {
-    setShowConfirm(false);
-    setSnappedOffset(0);
-    offsetRef.current = 0;
-    if (containerRef.current) {
-      containerRef.current.style.transition = "transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)";
-      containerRef.current.style.transform = "translateX(0px)";
-    }
   };
 
   return (
     <>
-      <div className="relative overflow-hidden rounded-2xl">
+      <div className="relative overflow-hidden rounded-2xl" style={{ touchAction: "pan-y" }}>
         {/* Delete button behind */}
-        <div className="absolute inset-y-0 right-0 flex w-20 items-center justify-center bg-destructive">
+        <div className="absolute inset-y-0 right-0 flex w-[72px] items-center justify-center bg-red-600">
           <button
-            onClick={handleDelete}
-            className="flex h-full w-full items-center justify-center text-white"
+            onClick={() => setShowConfirm(true)}
+            className="flex h-full w-full flex-col items-center justify-center gap-1 text-white"
             aria-label="Delete routine"
           >
             <Trash2 className="h-5 w-5" />
+            <span className="text-[10px] font-medium">Delete</span>
           </button>
         </div>
 
-        {/* Swipeable content */}
+        {/* Swipeable card */}
         <div
           ref={containerRef}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          style={{
-            transform: `translateX(${snappedOffset}px)`,
-            willChange: "transform",
-          }}
-          className="relative z-10"
+          className="relative z-10 bg-background"
+          style={{ willChange: "transform" }}
         >
           <Link href={`/routines/${routine.id}`}>
-            <Card className="transition-colors hover:bg-accent/20 active:bg-accent/40">
+            <Card>
               <CardContent className="py-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
@@ -171,10 +155,10 @@ function SwipeableRoutineCard({
         </div>
       </div>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       <Modal
         open={showConfirm}
-        onClose={resetSwipe}
+        onClose={() => { setShowConfirm(false); }}
         title="Delete Routine"
       >
         <div className="space-y-4">
@@ -185,7 +169,7 @@ function SwipeableRoutineCard({
             <Button
               variant="secondary"
               className="flex-1"
-              onClick={resetSwipe}
+              onClick={() => setShowConfirm(false)}
             >
               Cancel
             </Button>
@@ -209,7 +193,6 @@ export default function RoutinesPage() {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newRoutineName, setNewRoutineName] = useState("");
-
   const [error, setError] = useState<string | null>(null);
 
   const handleCreateRoutine = async () => {
@@ -233,7 +216,7 @@ export default function RoutinesPage() {
         rightAction={
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-primary transition-colors hover:bg-accent active:bg-accent/70"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-primary transition-colors hover:bg-accent"
             aria-label="Create routine"
           >
             <Plus className="h-5 w-5" />
@@ -242,14 +225,10 @@ export default function RoutinesPage() {
       />
 
       <div className="px-4 py-6">
-        {/* Loading State */}
         {loading && (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="rounded-2xl border border-border bg-card p-5"
-              >
+              <div key={i} className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex items-center gap-3">
                   <Skeleton circle width="w-10" height="h-10" />
                   <div className="flex-1 space-y-2">
@@ -262,7 +241,6 @@ export default function RoutinesPage() {
           </div>
         )}
 
-        {/* Empty State */}
         {!loading && routines.length === 0 && (
           <EmptyState
             icon={Dumbbell}
@@ -276,7 +254,6 @@ export default function RoutinesPage() {
           />
         )}
 
-        {/* Routines List */}
         {!loading && routines.length > 0 && (
           <div className="space-y-3">
             {routines.map((routine) => (
@@ -290,13 +267,9 @@ export default function RoutinesPage() {
         )}
       </div>
 
-      {/* Create Routine Modal */}
       <Modal
         open={showCreateModal}
-        onClose={() => {
-          setShowCreateModal(false);
-          setNewRoutineName("");
-        }}
+        onClose={() => { setShowCreateModal(false); setNewRoutineName(""); }}
         title="New Routine"
       >
         <div className="space-y-4">
@@ -305,9 +278,7 @@ export default function RoutinesPage() {
             placeholder="e.g., Push Day, Full Body, Leg Day"
             value={newRoutineName}
             onChange={(e) => setNewRoutineName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleCreateRoutine();
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter") handleCreateRoutine(); }}
             autoFocus
           />
           {error && (
@@ -315,11 +286,7 @@ export default function RoutinesPage() {
               {error}
             </div>
           )}
-          <Button
-            fullWidth
-            onClick={handleCreateRoutine}
-            disabled={!newRoutineName.trim()}
-          >
+          <Button fullWidth onClick={handleCreateRoutine} disabled={!newRoutineName.trim()}>
             Create Routine
           </Button>
         </div>

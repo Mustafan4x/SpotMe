@@ -199,50 +199,73 @@ function ExerciseRow({
   onMoveDown: () => void;
   onUpdateSets: (sets: number) => void;
 }) {
+  const elRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef(0);
-  const currentXRef = useRef(0);
-  const [offset, setOffset] = useState(0);
+  const startYRef = useRef(0);
+  const draggingRef = useRef(false);
+  const lockedRef = useRef<"x" | "y" | null>(null);
+  const [revealed, setRevealed] = useState(false);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     startXRef.current = e.touches[0].clientX;
-    currentXRef.current = 0;
+    startYRef.current = e.touches[0].clientY;
+    draggingRef.current = false;
+    lockedRef.current = null;
+    if (elRef.current) elRef.current.style.transition = "none";
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    const diff = e.touches[0].clientX - startXRef.current;
-    const clampedDiff = Math.min(0, Math.max(-100, diff));
-    currentXRef.current = clampedDiff;
-    setOffset(clampedDiff);
-  }, []);
+    const dx = e.touches[0].clientX - startXRef.current;
+    const dy = e.touches[0].clientY - startYRef.current;
+    if (!lockedRef.current && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      lockedRef.current = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+    }
+    if (lockedRef.current !== "x") return;
+    draggingRef.current = true;
+    e.preventDefault();
+    const base = revealed ? -72 : 0;
+    const offset = Math.min(0, Math.max(-72, base + dx));
+    if (elRef.current) elRef.current.style.transform = `translateX(${offset}px)`;
+  }, [revealed]);
 
   const handleTouchEnd = useCallback(() => {
-    if (currentXRef.current < -50) {
-      setOffset(-80);
+    if (!draggingRef.current) return;
+    const el = elRef.current;
+    if (!el) return;
+    const match = el.style.transform.match(/translateX\((-?\d+\.?\d*)px\)/);
+    const current = match ? parseFloat(match[1]) : 0;
+    el.style.transition = "transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)";
+    if (current < -36) {
+      el.style.transform = "translateX(-72px)";
+      setRevealed(true);
     } else {
-      setOffset(0);
+      el.style.transform = "translateX(0px)";
+      setRevealed(false);
     }
   }, []);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl">
+    <div className="relative overflow-hidden rounded-2xl" style={{ touchAction: "pan-y" }}>
       {/* Delete button behind */}
-      <div className="absolute inset-y-0 right-0 flex w-20 items-center justify-center bg-destructive">
+      <div className="absolute inset-y-0 right-0 flex w-[72px] items-center justify-center bg-red-600">
         <button
-          onClick={() => { onRemove(); setOffset(0); }}
-          className="flex h-full w-full items-center justify-center text-white"
+          onClick={onRemove}
+          className="flex h-full w-full flex-col items-center justify-center gap-1 text-white"
           aria-label="Remove exercise"
         >
           <Trash2 className="h-5 w-5" />
+          <span className="text-[10px] font-medium">Delete</span>
         </button>
       </div>
 
       {/* Swipeable content */}
       <div
+        ref={elRef}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        style={{ transform: `translateX(${offset}px)`, transition: offset === -80 || offset === 0 ? 'transform 0.2s ease-out' : 'none' }}
-        className="relative z-10"
+        className="relative z-10 bg-background"
+        style={{ willChange: "transform" }}
       >
         <Card>
           <CardContent className="py-3">
@@ -300,14 +323,7 @@ function ExerciseRow({
                 </div>
               </div>
 
-              {/* Delete button (also available without swiping) */}
-              <button
-                onClick={onRemove}
-                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive active:bg-destructive/20"
-                aria-label="Remove exercise"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              {/* Delete only via swipe */}
             </div>
           </CardContent>
         </Card>
