@@ -1,0 +1,1 @@
+Move checkmark, bold the wight, reps, and rir, fix up transitions, new homescreen, app logo, add some pazaz to calandar, see what graphs look like, make the sets up and down buttons update faster, fix adding excersices, and many many more fixes to be made
