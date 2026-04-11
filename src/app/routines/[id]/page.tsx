@@ -50,15 +50,18 @@ function ExerciseSearchModal({
   const [customName, setCustomName] = useState("");
   const [customMuscle, setCustomMuscle] = useState("");
 
+  // Only show user-created exercises, not pre-loaded defaults
+  const userExercises = exercises.filter((e) => !e.is_default);
+
   const filtered = query.trim()
-    ? exercises.filter(
+    ? userExercises.filter(
         (e) =>
           !excludeIds.has(e.id) &&
           (e.name.toLowerCase().includes(query.toLowerCase()) ||
             (e.muscle_group &&
               e.muscle_group.toLowerCase().includes(query.toLowerCase())))
       )
-    : exercises.filter((e) => !excludeIds.has(e.id));
+    : userExercises.filter((e) => !excludeIds.has(e.id));
 
   const handleCreate = () => {
     if (!customName.trim()) return;

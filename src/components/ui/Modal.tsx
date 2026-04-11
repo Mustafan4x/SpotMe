@@ -22,6 +22,21 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
     if (open) {
       document.addEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "hidden";
+
+      // Scroll focused inputs into view when keyboard opens on mobile
+      const handleFocusIn = () => {
+        setTimeout(() => {
+          const active = document.activeElement as HTMLElement;
+          active?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+        }, 300);
+      };
+      document.addEventListener("focusin", handleFocusIn);
+
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown);
+        document.removeEventListener("focusin", handleFocusIn);
+        document.body.style.overflow = "";
+      };
     }
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
