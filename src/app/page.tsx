@@ -204,7 +204,7 @@ function ProgressHighlights({ records }: { records: PersonalRecord[] }) {
             <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
             <p className="text-sm text-foreground">
               <span className="font-medium">New best!</span>{" "}
-              {pr.exercise_name}: {pr.weight} lbs x {pr.reps}
+              {pr.exercise_name}: {pr.weight} lbs x {pr.reps} reps
             </p>
           </div>
         ))}

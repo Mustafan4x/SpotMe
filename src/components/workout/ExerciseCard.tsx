@@ -188,8 +188,6 @@ export function ExerciseCard({
                 ? () => handleDeleteSet(index)
                 : undefined
             }
-            lastTimeData={lastSessionSets[index] ?? null}
-            onQuickFill={() => handleQuickFill(index)}
             isSaved={setInput.saved}
           />
         ))}

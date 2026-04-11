@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -199,74 +199,120 @@ function ExerciseRow({
   onMoveDown: () => void;
   onUpdateSets: (sets: number) => void;
 }) {
+  const startXRef = useRef(0);
+  const currentXRef = useRef(0);
+  const [offset, setOffset] = useState(0);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    startXRef.current = e.touches[0].clientX;
+    currentXRef.current = 0;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const diff = e.touches[0].clientX - startXRef.current;
+    const clampedDiff = Math.min(0, Math.max(-100, diff));
+    currentXRef.current = clampedDiff;
+    setOffset(clampedDiff);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (currentXRef.current < -50) {
+      setOffset(-80);
+    } else {
+      setOffset(0);
+    }
+  }, []);
+
   return (
-    <Card>
-      <CardContent className="py-3">
-        <div className="flex items-center gap-3">
-          {/* Reorder buttons */}
-          <div className="flex flex-col gap-0.5">
-            <button
-              onClick={onMoveUp}
-              disabled={index === 0}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30"
-              aria-label="Move up"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </button>
-            <button
-              onClick={onMoveDown}
-              disabled={index === total - 1}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30"
-              aria-label="Move down"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </button>
-          </div>
+    <div className="relative overflow-hidden rounded-2xl">
+      {/* Delete button behind */}
+      <div className="absolute inset-y-0 right-0 flex w-20 items-center justify-center bg-destructive">
+        <button
+          onClick={() => { onRemove(); setOffset(0); }}
+          className="flex h-full w-full items-center justify-center text-white"
+          aria-label="Remove exercise"
+        >
+          <Trash2 className="h-5 w-5" />
+        </button>
+      </div>
 
-          {/* Exercise info */}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">
-              {re.exercise.name}
-            </p>
-            <div className="mt-1 flex items-center gap-2">
-              {re.exercise.muscle_group && (
-                <Badge variant="muscle">{re.exercise.muscle_group}</Badge>
-              )}
-              {/* Default sets control */}
-              <div className="flex items-center gap-1">
+      {/* Swipeable content */}
+      <div
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{ transform: `translateX(${offset}px)`, transition: offset === -80 || offset === 0 ? 'transform 0.2s ease-out' : 'none' }}
+        className="relative z-10"
+      >
+        <Card>
+          <CardContent className="py-3">
+            <div className="flex items-center gap-3">
+              {/* Reorder buttons */}
+              <div className="flex flex-col gap-0.5">
                 <button
-                  onClick={() => onUpdateSets(Math.max(1, re.default_sets - 1))}
-                  className="flex h-6 w-6 items-center justify-center rounded-md bg-accent text-muted-foreground hover:text-foreground"
-                  aria-label="Decrease sets"
+                  onClick={onMoveUp}
+                  disabled={index === 0}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30"
+                  aria-label="Move up"
                 >
-                  <MinusIcon className="h-3 w-3" />
+                  <ChevronUp className="h-4 w-4" />
                 </button>
-                <span className="w-6 text-center text-xs text-muted-foreground">
-                  {re.default_sets}
-                </span>
                 <button
-                  onClick={() => onUpdateSets(re.default_sets + 1)}
-                  className="flex h-6 w-6 items-center justify-center rounded-md bg-accent text-muted-foreground hover:text-foreground"
-                  aria-label="Increase sets"
+                  onClick={onMoveDown}
+                  disabled={index === total - 1}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30"
+                  aria-label="Move down"
                 >
-                  <Plus className="h-3 w-3" />
+                  <ChevronDown className="h-4 w-4" />
                 </button>
-                <span className="text-xs text-muted-foreground">sets</span>
               </div>
-            </div>
-          </div>
 
-          {/* Delete button */}
-          <button
-            onClick={onRemove}
-            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive active:bg-destructive/20"
-            aria-label="Remove exercise"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      </CardContent>
-    </Card>
+              {/* Exercise info */}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {re.exercise.name}
+                </p>
+                <div className="mt-1 flex items-center gap-2">
+                  {re.exercise.muscle_group && (
+                    <Badge variant="muscle">{re.exercise.muscle_group}</Badge>
+                  )}
+                  {/* Default sets control */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => onUpdateSets(Math.max(1, re.default_sets - 1))}
+                      className="flex h-6 w-6 items-center justify-center rounded-md bg-accent text-muted-foreground hover:text-foreground"
+                      aria-label="Decrease sets"
+                    >
+                      <MinusIcon className="h-3 w-3" />
+                    </button>
+                    <span className="w-6 text-center text-xs text-muted-foreground">
+                      {re.default_sets}
+                    </span>
+                    <button
+                      onClick={() => onUpdateSets(re.default_sets + 1)}
+                      className="flex h-6 w-6 items-center justify-center rounded-md bg-accent text-muted-foreground hover:text-foreground"
+                      aria-label="Increase sets"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                    <span className="text-xs text-muted-foreground">sets</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Delete button (also available without swiping) */}
+              <button
+                onClick={onRemove}
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive active:bg-destructive/20"
+                aria-label="Remove exercise"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
 

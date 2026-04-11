@@ -20,14 +20,16 @@ import { useRoutines } from "@/hooks/useRoutines";
 import { useExerciseProgress, useRoutineProgress } from "@/hooks/useProgress";
 import type { TrendDirection } from "@/lib/types";
 
-type TimeRange = "1m" | "3m" | "6m" | "1y" | "all";
+type TimeRange = "1w" | "2w" | "1m" | "3m" | "6m" | "1y" | "all";
 
 const TIME_RANGES: { value: TimeRange; label: string }[] = [
+  { value: "1w", label: "1W" },
+  { value: "2w", label: "2W" },
   { value: "1m", label: "1M" },
   { value: "3m", label: "3M" },
   { value: "6m", label: "6M" },
   { value: "1y", label: "1Y" },
-  { value: "all", label: "All" },
+  { value: "all", label: "ALL" },
 ];
 
 // ============================================================================
@@ -190,6 +192,9 @@ export default function ProgressPage() {
   const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>("3m");
 
+  // Only show user-created exercises, not pre-loaded defaults
+  const userExercises = exercises.filter((e) => !e.is_default);
+
   const { data: exerciseData, isLoading: exerciseLoading } = useExerciseProgress(
     selectedExerciseId,
     timeRange
@@ -199,12 +204,12 @@ export default function ProgressPage() {
     selectedRoutineId
   );
 
-  // Auto-select first exercise when exercises load
+  // Auto-select first user exercise when exercises load
   useEffect(() => {
-    if (exercises.length > 0 && !selectedExerciseId) {
-      setSelectedExerciseId(exercises[0].id);
+    if (userExercises.length > 0 && !selectedExerciseId) {
+      setSelectedExerciseId(userExercises[0].id);
     }
-  }, [exercises, selectedExerciseId]);
+  }, [userExercises, selectedExerciseId]);
 
   // Auto-select first routine when routines load
   useEffect(() => {
@@ -223,7 +228,7 @@ export default function ProgressPage() {
         {/* Exercise Selector */}
         {routinesLoading ? (
           <Skeleton height="h-12" />
-        ) : exercises.length === 0 ? (
+        ) : userExercises.length === 0 ? (
           <EmptyState
             icon={BarChart3}
             title="No exercises yet"
@@ -232,7 +237,7 @@ export default function ProgressPage() {
         ) : (
           <>
             <ExerciseSelector
-              exercises={exercises}
+              exercises={userExercises}
               selectedId={selectedExerciseId}
               onChange={setSelectedExerciseId}
             />

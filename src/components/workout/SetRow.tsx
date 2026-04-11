@@ -2,9 +2,8 @@
 
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
-import { Check, Copy, Trash2 } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 import { RIR_LABELS } from "@/lib/types";
-import type { WorkoutSet } from "@/lib/types";
 
 interface SetRowProps {
   setNumber: number;
@@ -16,8 +15,6 @@ interface SetRowProps {
   onRirChange: (value: number) => void;
   onSave: () => void;
   onDelete?: () => void;
-  lastTimeData?: WorkoutSet | null;
-  onQuickFill?: () => void;
   isSaved: boolean;
 }
 
@@ -31,8 +28,6 @@ export function SetRow({
   onRirChange,
   onSave,
   onDelete,
-  lastTimeData,
-  onQuickFill,
   isSaved,
 }: SetRowProps) {
   return (
@@ -55,16 +50,6 @@ export function SetRow({
           )}
         </div>
         <div className="flex items-center gap-1">
-          {lastTimeData && onQuickFill && !isSaved && (
-            <button
-              onClick={onQuickFill}
-              className="flex min-h-[36px] items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              title="Copy last session values"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              <span>Last time</span>
-            </button>
-          )}
           {onDelete && !isSaved && (
             <button
               onClick={onDelete}
@@ -76,13 +61,6 @@ export function SetRow({
           )}
         </div>
       </div>
-
-      {/* Last time reference */}
-      {lastTimeData && (
-        <p className="mb-2 text-xs text-muted-foreground">
-          Last time: {lastTimeData.weight} lbs x {lastTimeData.reps} reps
-        </p>
-      )}
 
       {/* Inputs row */}
       <div className="flex h-[72px] items-end gap-2">

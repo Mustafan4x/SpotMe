@@ -13,6 +13,7 @@ import type {
 import {
   getRecentSessions,
   getSessionsByRoutine,
+  getExercises,
 } from '@/lib/database';
 import {
   calculateVolume,
@@ -49,14 +50,21 @@ function mapTrend(
 /** Filter a time range. */
 function filterByTimeRange<T extends { date: string }>(
   points: T[],
-  timeRange: '1m' | '3m' | '6m' | '1y' | 'all'
+  timeRange: '1w' | '2w' | '1m' | '3m' | '6m' | '1y' | 'all'
 ): T[] {
   if (timeRange === 'all') return points;
 
   const now = new Date();
-  const months: Record<string, number> = { '1m': 1, '3m': 3, '6m': 6, '1y': 12 };
   const cutoff = new Date(now);
-  cutoff.setMonth(cutoff.getMonth() - months[timeRange]);
+
+  if (timeRange === '1w') {
+    cutoff.setDate(cutoff.getDate() - 7);
+  } else if (timeRange === '2w') {
+    cutoff.setDate(cutoff.getDate() - 14);
+  } else {
+    const months: Record<string, number> = { '1m': 1, '3m': 3, '6m': 6, '1y': 12 };
+    cutoff.setMonth(cutoff.getMonth() - months[timeRange]);
+  }
 
   return points.filter((p) => new Date(p.date) >= cutoff);
 }
@@ -88,7 +96,7 @@ export interface ExerciseProgressData {
  */
 export function useExerciseProgress(
   exerciseId: string | null,
-  timeRange: '1m' | '3m' | '6m' | '1y' | 'all' = 'all'
+  timeRange: '1w' | '2w' | '1m' | '3m' | '6m' | '1y' | 'all' = 'all'
 ) {
   return useSWR<ExerciseProgressData | null>(
     exerciseId ? ['exerciseProgress', exerciseId, timeRange] : null,
@@ -269,15 +277,23 @@ export function useDashboardData() {
         const historySets = sessions.slice(1).flatMap((s) => s.sets);
         const prs = detectPRs(latestSets, historySets);
 
-        for (const pr of prs) {
-          personalRecords.push({
-            exercise_id: pr.exercise_id,
-            exercise_name: pr.exercise_id, // Will be resolved by UI with exercise data
-            weight: pr.type === 'max_weight' ? pr.value : pr.weight ?? 0,
-            reps: pr.type === 'max_reps' ? pr.value : 0,
-            date: sessions[0].started_at,
-            type: pr.type === 'max_weight' ? 'weight' : 'reps',
-          });
+        if (prs.length > 0) {
+          // Fetch exercises to resolve names from IDs
+          const allExercises = await getExercises();
+          const exerciseMap = new Map(allExercises.map((e) => [e.id, e.name]));
+
+          for (const pr of prs) {
+            const exerciseName = exerciseMap.get(pr.exercise_id);
+            if (!exerciseName) continue; // Skip PRs for unknown exercises
+            personalRecords.push({
+              exercise_id: pr.exercise_id,
+              exercise_name: exerciseName,
+              weight: pr.type === 'max_weight' ? pr.value : pr.weight ?? 0,
+              reps: pr.type === 'max_reps' ? pr.value : 0,
+              date: sessions[0].started_at,
+              type: pr.type === 'max_weight' ? 'weight' : 'reps',
+            });
+          }
         }
       }
 
