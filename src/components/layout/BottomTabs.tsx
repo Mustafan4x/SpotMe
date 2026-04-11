@@ -31,7 +31,7 @@ export function BottomTabs() {
             <Link
               key={href}
               href={href}
-              className={`flex min-h-[50px] min-w-[48px] flex-col items-center justify-center gap-0.5 px-3 py-2 text-xs transition-all active:scale-90 ${
+              className={`flex min-h-[50px] min-w-[48px] flex-col items-center justify-center gap-0.5 px-3 py-2 text-xs ${
                 isActive
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"

@@ -41,28 +41,57 @@ function SwipeableRoutineCard({
   const startXRef = useRef(0);
   const currentXRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [offset, setOffset] = useState(0);
+  const isDraggingRef = useRef(false);
+  const offsetRef = useRef(0);
+  const [snappedOffset, setSnappedOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     startXRef.current = e.touches[0].clientX;
-    currentXRef.current = 0;
+    currentXRef.current = offsetRef.current;
+    isDraggingRef.current = false;
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     const diff = e.touches[0].clientX - startXRef.current;
-    // Only allow swiping left
-    const clampedDiff = Math.min(0, Math.max(-100, diff));
-    currentXRef.current = clampedDiff;
-    setOffset(clampedDiff);
+
+    // Require a minimum horizontal movement of 10px before starting swipe
+    if (!isDraggingRef.current && Math.abs(diff) < 10) return;
+
+    if (!isDraggingRef.current) {
+      isDraggingRef.current = true;
+      setIsDragging(true);
+    }
+
+    // Only allow swiping left, clamp between -80 and 0
+    const newOffset = Math.min(0, Math.max(-80, currentXRef.current + diff));
+    offsetRef.current = newOffset;
+
+    requestAnimationFrame(() => {
+      if (containerRef.current) {
+        containerRef.current.style.transform = `translateX(${newOffset}px)`;
+      }
+    });
   }, []);
 
   const handleTouchEnd = useCallback(() => {
-    // If swiped far enough, snap to reveal delete button
-    if (currentXRef.current < -50) {
-      setOffset(-80);
-    } else {
-      setOffset(0);
+    const finalOffset = offsetRef.current < -40 ? -80 : 0;
+    offsetRef.current = finalOffset;
+    setSnappedOffset(finalOffset);
+    setIsDragging(false);
+
+    if (containerRef.current) {
+      containerRef.current.style.transition = "transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)";
+      containerRef.current.style.transform = `translateX(${finalOffset}px)`;
+      // Remove inline transition after it completes so drag stays smooth
+      const onEnd = () => {
+        if (containerRef.current) {
+          containerRef.current.style.transition = "";
+        }
+        containerRef.current?.removeEventListener("transitionend", onEnd);
+      };
+      containerRef.current.addEventListener("transitionend", onEnd);
     }
   }, []);
 
@@ -73,7 +102,21 @@ function SwipeableRoutineCard({
   const confirmDelete = () => {
     onDelete();
     setShowConfirm(false);
-    setOffset(0);
+    setSnappedOffset(0);
+    offsetRef.current = 0;
+    if (containerRef.current) {
+      containerRef.current.style.transform = "translateX(0px)";
+    }
+  };
+
+  const resetSwipe = () => {
+    setShowConfirm(false);
+    setSnappedOffset(0);
+    offsetRef.current = 0;
+    if (containerRef.current) {
+      containerRef.current.style.transition = "transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)";
+      containerRef.current.style.transform = "translateX(0px)";
+    }
   };
 
   return (
@@ -96,7 +139,10 @@ function SwipeableRoutineCard({
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          style={{ transform: `translateX(${offset}px)`, transition: offset === -80 || offset === 0 ? 'transform 0.2s ease-out' : 'none' }}
+          style={{
+            transform: `translateX(${snappedOffset}px)`,
+            willChange: "transform",
+          }}
           className="relative z-10"
         >
           <Link href={`/routines/${routine.id}`}>
@@ -128,7 +174,7 @@ function SwipeableRoutineCard({
       {/* Delete confirmation modal */}
       <Modal
         open={showConfirm}
-        onClose={() => { setShowConfirm(false); setOffset(0); }}
+        onClose={resetSwipe}
         title="Delete Routine"
       >
         <div className="space-y-4">
@@ -139,7 +185,7 @@ function SwipeableRoutineCard({
             <Button
               variant="secondary"
               className="flex-1"
-              onClick={() => { setShowConfirm(false); setOffset(0); }}
+              onClick={resetSwipe}
             >
               Cancel
             </Button>
